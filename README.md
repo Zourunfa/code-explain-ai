@@ -15,5 +15,3 @@ Second example of code action provider shows how to associate code actions with 
 ### `vscode` module
 
 - [`languages.registerCodeActionsProvider`](https://code.visualstudio.com/api/references/vscode-api#languages.registerCodeActionsProvider)
-- [`Diagnostic.code`](https://code.visualstudio.com/api/references/vscode-api#Diagnostic)
-- [`CodeActionContext.diagnostics`](https://code.visualstudio.com/api/references/vscode-api#CodeActionContext)

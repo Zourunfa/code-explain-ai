@@ -3,91 +3,45 @@
  * Copyright (C) Microsoft Corporation. All rights reserved.
  *--------------------------------------------------------*/
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Emojinfo = exports.Emojizer = exports.activate = void 0;
+exports.activate = void 0;
 const vscode = require("vscode");
-const diagnostics_1 = require("./diagnostics");
-const COMMAND = 'code-actions-sample.command';
-function activate(context) {
-    console.log('------------------start sample');
-    context.subscriptions.push(vscode.languages.registerCodeActionsProvider('markdown', new Emojizer(), {
-        providedCodeActionKinds: Emojizer.providedCodeActionKinds,
+let myStatusBarItem;
+function activate({ subscriptions }) {
+    // register a command that is invoked when the status bar
+    // item is selected
+    const myCommandId = 'sample.showSelectionCount';
+    subscriptions.push(vscode.commands.registerCommand(myCommandId, () => {
+        const n = getNumberOfSelectedLines(vscode.window.activeTextEditor);
+        vscode.window.showInformationMessage(`Yeah, ${n} line(s) selected... Keep going!`);
     }));
-    const emojiDiagnostics = vscode.languages.createDiagnosticCollection('emoji');
-    context.subscriptions.push(emojiDiagnostics);
-    (0, diagnostics_1.subscribeToDocumentChanges)(context, emojiDiagnostics);
-    context.subscriptions.push(vscode.languages.registerCodeActionsProvider('markdown', new Emojinfo(), {
-        providedCodeActionKinds: Emojinfo.providedCodeActionKinds,
-    }));
-    context.subscriptions.push(vscode.commands.registerCommand(COMMAND, () => vscode.env.openExternal(vscode.Uri.parse('https://unicode.org/emoji/charts-12.0/full-emoji-list.html'))));
+    // create a new status bar item that we can now manage
+    myStatusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
+    myStatusBarItem.command = myCommandId;
+    subscriptions.push(myStatusBarItem);
+    // register some listener that make sure the status bar
+    // item always up-to-date
+    subscriptions.push(vscode.window.onDidChangeActiveTextEditor(updateStatusBarItem));
+    subscriptions.push(vscode.window.onDidChangeTextEditorSelection(updateStatusBarItem));
+    // update status bar item once at start
+    updateStatusBarItem();
 }
 exports.activate = activate;
-/**
- * Provides code actions for converting :) to a smiley emoji.
- */
-class Emojizer {
-    provideCodeActions(document, range) {
-        if (!this.isAtStartOfSmiley(document, range)) {
-            return;
-        }
-        const replaceWithSmileyCatFix = this.createFix(document, range, '😺');
-        const replaceWithSmileyFix = this.createFix(document, range, '😀');
-        // Marking a single fix as `preferred` means that users can apply it with a
-        // single keyboard shortcut using the `Auto Fix` command.
-        replaceWithSmileyFix.isPreferred = true;
-        const replaceWithSmileyHankyFix = this.createFix(document, range, '💩');
-        const commandAction = this.createCommand();
-        return [
-            replaceWithSmileyCatFix,
-            replaceWithSmileyFix,
-            replaceWithSmileyHankyFix,
-            commandAction,
-        ];
+function updateStatusBarItem() {
+    const n = getNumberOfSelectedLines(vscode.window.activeTextEditor);
+    console.log(n, '---------n');
+    if (n > 0) {
+        myStatusBarItem.text = `$(megaphone) ${n} line(s) selected`;
+        myStatusBarItem.show();
     }
-    isAtStartOfSmiley(document, range) {
-        const start = range.start;
-        const line = document.lineAt(start.line);
-        return line.text[start.character] === ':' && line.text[start.character + 1] === ')';
-    }
-    createFix(document, range, emoji) {
-        const fix = new vscode.CodeAction(`Convert to ${emoji}`, vscode.CodeActionKind.QuickFix);
-        fix.edit = new vscode.WorkspaceEdit();
-        fix.edit.replace(document.uri, new vscode.Range(range.start, range.start.translate(0, 2)), emoji);
-        return fix;
-    }
-    createCommand() {
-        const action = new vscode.CodeAction('Learn more...', vscode.CodeActionKind.Empty);
-        action.command = {
-            command: COMMAND,
-            title: 'Learn more about emojis',
-            tooltip: 'This will open the unicode emoji page.',
-        };
-        return action;
+    else {
+        myStatusBarItem.hide();
     }
 }
-exports.Emojizer = Emojizer;
-Emojizer.providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
-/**
- * Provides code actions corresponding to diagnostic problems.
- */
-class Emojinfo {
-    provideCodeActions(document, range, context, token) {
-        // for each diagnostic entry that has the matching `code`, create a code action command
-        return context.diagnostics
-            .filter((diagnostic) => diagnostic.code === diagnostics_1.EMOJI_MENTION)
-            .map((diagnostic) => this.createCommandCodeAction(diagnostic));
+function getNumberOfSelectedLines(editor) {
+    let lines = 0;
+    if (editor) {
+        lines = editor.selections.reduce((prev, curr) => prev + (curr.end.line - curr.start.line), 0);
     }
-    createCommandCodeAction(diagnostic) {
-        const action = new vscode.CodeAction('Learn more...', vscode.CodeActionKind.QuickFix);
-        action.command = {
-            command: COMMAND,
-            title: 'Learn more about emojis',
-            tooltip: 'This will open the unicode emoji page.',
-        };
-        action.diagnostics = [diagnostic];
-        action.isPreferred = true;
-        return action;
-    }
+    return lines;
 }
-exports.Emojinfo = Emojinfo;
-Emojinfo.providedCodeActionKinds = [vscode.CodeActionKind.QuickFix];
 //# sourceMappingURL=extension.js.map

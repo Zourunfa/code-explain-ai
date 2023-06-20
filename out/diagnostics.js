@@ -18,8 +18,11 @@ const EMOJI = 'emoji';
  */
 function refreshDiagnostics(doc, emojiDiagnostics) {
     const diagnostics = [];
+    console.log(doc, '--doc');
+    console.log(doc.lineCount, '---doclineCount');
     for (let lineIndex = 0; lineIndex < doc.lineCount; lineIndex++) {
         const lineOfText = doc.lineAt(lineIndex);
+        console.log(lineOfText, '---lineofText');
         if (lineOfText.text.includes(EMOJI)) {
             diagnostics.push(createDiagnostic(doc, lineOfText, lineIndex));
         }
@@ -40,13 +43,13 @@ function subscribeToDocumentChanges(context, emojiDiagnostics) {
     if (vscode.window.activeTextEditor) {
         refreshDiagnostics(vscode.window.activeTextEditor.document, emojiDiagnostics);
     }
-    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor(editor => {
+    context.subscriptions.push(vscode.window.onDidChangeActiveTextEditor((editor) => {
         if (editor) {
             refreshDiagnostics(editor.document, emojiDiagnostics);
         }
     }));
-    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument(e => refreshDiagnostics(e.document, emojiDiagnostics)));
-    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument(doc => emojiDiagnostics.delete(doc.uri)));
+    context.subscriptions.push(vscode.workspace.onDidChangeTextDocument((e) => refreshDiagnostics(e.document, emojiDiagnostics)));
+    context.subscriptions.push(vscode.workspace.onDidCloseTextDocument((doc) => emojiDiagnostics.delete(doc.uri)));
 }
 exports.subscribeToDocumentChanges = subscribeToDocumentChanges;
 //# sourceMappingURL=diagnostics.js.map
