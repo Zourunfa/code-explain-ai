@@ -1,8 +1,8 @@
 'use strict';
-
+import * as flatted from 'flatted';
 import * as vscode from 'vscode';
 import { ChatCompletionRequestMessage, Configuration, OpenAIApi } from 'openai';
-
+import { readStream } from './openai';
 let openai: OpenAIApi | undefined = undefined;
 
 let commentId = 1;
@@ -386,6 +386,102 @@ export async function activate(context: vscode.ExtensionContext) {
 	 * The new humna question and AI response then gets added to the thread.
 	 * @param reply
 	 */
+	const axiosOptionForOpenAI = (
+		onData: (text: string, err?: any, end?: boolean) => void
+	) => ({
+		responseType: 'stream' as any,
+		onDownloadProgress: (e: any) => {
+			try {
+				if (e.currentTarget.status !== 200) {
+					onData('', new Error(e.currentTarget.responseText), false);
+					return;
+				}
+
+				const lines = e.currentTarget.response
+					.toString()
+					.split('\n')
+					.filter((line: any) => line.trim() !== '');
+
+				let result = '';
+
+				let ended = false;
+
+				for (const line of lines) {
+					const message = line.replace(/^data: /, '');
+					console.log(line, '---line');
+					if (message === '[DONE]') {
+						// stream finished
+						ended = true;
+						break;
+					}
+
+					const parsed = JSON.parse(message);
+
+					const text =
+						parsed.choices[0].text ||
+						parsed.choices[0]?.delta?.content ||
+						parsed.choices[0]?.message?.content ||
+						'';
+
+					if (!text && !result) {
+						continue;
+					}
+
+					result += text;
+
+					// edits don't support stream
+					if (parsed.object === 'edit') {
+						ended = true;
+						break;
+					}
+				}
+
+				if (ended) {
+					onData(result, '', true);
+				} else {
+					onData?.(result);
+				}
+			} catch (e) {
+				// expose current response for error display
+				onData?.('', e.currentTarget.response);
+			}
+		},
+	});
+
+	const handelPrompt = async (
+		prompt: string,
+		ref: any,
+		onData: (text: string, err?: any, end?: boolean) => void
+	) => {
+		const controller = new AbortController();
+
+		const commonOption = {
+			max_tokens: 4000 - prompt.replace(/[\u4e00-\u9fa5]/g, 'aa').length,
+			stream: true,
+			model: 'gpt-3.5-turbo',
+			temperature: 0,
+		};
+		ref.current = controller;
+
+		try {
+			await openai!.createChatCompletion(
+				{
+					...commonOption,
+					messages: [{ role: 'user', content: prompt }],
+				},
+				{
+					...axiosOptionForOpenAI(onData),
+					signal: controller.signal,
+				}
+			);
+		} catch (error: any) {
+			console.log(error.message);
+		}
+	};
+	const handler = (text: string, err: any, end: boolean | undefined) => {
+		console.log(text, '---text');
+	};
+
 	async function askAI(reply: vscode.CommentReply) {
 		const question = reply.text.trim();
 		const thread = reply.thread;
@@ -425,30 +521,63 @@ export async function activate(context: vscode.ExtensionContext) {
 			);
 		}
 		if (model === 'ChatGPT' || model === 'gpt-4') {
-			const response = await openai.createChatCompletion({
-				model: model === 'ChatGPT' ? 'gpt-3.5-turbo' : 'gpt-4',
-				messages: chatGPTPrompt,
-				temperature: 0,
-				max_tokens: 1000,
-				top_p: 1.0,
-				frequency_penalty: 1,
-				presence_penalty: 1,
-			});
+			// const response = await openai.createChatCompletion({
+			// 	model: model === 'ChatGPT' ? 'gpt-3.5-turbo' : 'gpt-4',
+			// 	messages: chatGPTPrompt,
+			// 	temperature: 0,
+			// 	max_tokens: 1000,
+			// 	top_p: 1.0,
+			// 	frequency_penalty: 1,
+			// 	presence_penalty: 1,
+			// 	stream: true,
+			// });
 
-			const responseText = response.data.choices[0].message?.content
-				? response.data.choices[0].message?.content
-				: 'An error occured. Please try again...';
-			const AIComment = new NoteComment(
-				new vscode.MarkdownString(responseText.trim()),
-				vscode.CommentMode.Preview,
-				{
-					name: 'Scribe AI',
-					iconPath: vscode.Uri.parse('https://img.icons8.com/fluency/96/null/chatbot.png'),
-				},
-				thread,
-				thread.comments.length ? 'canDelete' : undefined
-			);
-			thread.comments = [...thread.comments, AIComment];
+			// const { body, status } = response;
+			const controllerRef = {};
+			const prompt = '1';
+			handelPrompt(prompt, controllerRef, handler);
+			// if (body) {
+			//     const reader = body.getReader()
+			// 			const AIComment = new NoteComment(
+			// 			new vscode.MarkdownString('1'),
+			// 			vscode.CommentMode.Preview,
+			// 			{
+			// 				name: 'Scribe AI',
+			// 				iconPath: vscode.Uri.parse('https://img.icons8.com/fluency/96/null/chatbot.png'),
+			// 			},
+			// 			thread,
+			// 			thread.comments.length ? 'canDelete' : undefined
+			// 		);
+			// 		thread.comments = [...thread.comments, AIComment];
+
+			//     await readStream(reader, status,AIComment,)
+
+			//   }
+
+			// const responseText = response.data.choices[0].message?.content
+			// 	? response.data.choices[0].message?.content
+			// 	: 'An error occured. Please try again...';
+			// const AIComment = new NoteComment(
+			// 	new vscode.MarkdownString(responseText.trim()),
+			// 	vscode.CommentMode.Preview,
+			// 	{
+			// 		name: 'Scribe AI',
+			// 		iconPath: vscode.Uri.parse('https://img.icons8.com/fluency/96/null/chatbot.png'),
+			// 	},
+			// 	thread,
+			// 	thread.comments.length ? 'canDelete' : undefined
+			// );
+			// thread.comments = [...thread.comments, AIComment];
+
+			// console.log(flatted.stringify(thread), '---thread');
+			// console.log(flatted.stringify(AIComment), '----AIcomment');.
+			// console.log(AIComment, '----AIcomment');
+
+			// console.log(AIComment.body.valueOf, '----AIcommentBody');
+			// console.log(AIComment.author, '----AIcommentBody');
+			// console.log(AIComment.parent, '----AIcommentBody');
+			// console.log(AIComment.contextValue, '----AIcommentBody');
+			// console.log(AIComment.body, '----AIcommentBody');
 		} else {
 			const response = await openai.createCompletion({
 				model: model,
