@@ -1,4 +1,5 @@
-'use strict';
+"use strict";
+// 'use strict';
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.activate = exports.showInputBox = void 0;
 const vscode = require("vscode");
@@ -283,81 +284,6 @@ async function activate(context) {
      * The new humna question and AI response then gets added to the thread.
      * @param reply
      */
-    const axiosOptionForOpenAI = (onData) => ({
-        responseType: 'stream',
-        onDownloadProgress: (e) => {
-            try {
-                if (e.currentTarget.status !== 200) {
-                    onData('', new Error(e.currentTarget.responseText), false);
-                    return;
-                }
-                const lines = e.currentTarget.response
-                    .toString()
-                    .split('\n')
-                    .filter((line) => line.trim() !== '');
-                let result = '';
-                let ended = false;
-                for (const line of lines) {
-                    const message = line.replace(/^data: /, '');
-                    console.log(line, '---line');
-                    if (message === '[DONE]') {
-                        // stream finished
-                        ended = true;
-                        break;
-                    }
-                    const parsed = JSON.parse(message);
-                    const text = parsed.choices[0].text ||
-                        parsed.choices[0]?.delta?.content ||
-                        parsed.choices[0]?.message?.content ||
-                        '';
-                    if (!text && !result) {
-                        continue;
-                    }
-                    result += text;
-                    // edits don't support stream
-                    if (parsed.object === 'edit') {
-                        ended = true;
-                        break;
-                    }
-                }
-                if (ended) {
-                    onData(result, '', true);
-                }
-                else {
-                    onData?.(result);
-                }
-            }
-            catch (e) {
-                // expose current response for error display
-                onData?.('', e.currentTarget.response);
-            }
-        },
-    });
-    const handelPrompt = async (prompt, ref, onData) => {
-        const controller = new AbortController();
-        const commonOption = {
-            max_tokens: 4000 - prompt.replace(/[\u4e00-\u9fa5]/g, 'aa').length,
-            stream: true,
-            model: 'gpt-3.5-turbo',
-            temperature: 0,
-        };
-        ref.current = controller;
-        try {
-            await openai.createChatCompletion({
-                ...commonOption,
-                messages: [{ role: 'user', content: prompt }],
-            }, {
-                ...axiosOptionForOpenAI(onData),
-                signal: controller.signal,
-            });
-        }
-        catch (error) {
-            console.log(error.message);
-        }
-    };
-    const handler = (text, err, end) => {
-        console.log(text, '---text');
-    };
     async function askAI(reply) {
         const question = reply.text.trim();
         const thread = reply.thread;
@@ -386,48 +312,60 @@ async function activate(context) {
             }));
         }
         if (model === 'ChatGPT' || model === 'gpt-4') {
-            // const response = await openai.createChatCompletion({
-            // 	model: model === 'ChatGPT' ? 'gpt-3.5-turbo' : 'gpt-4',
-            // 	messages: chatGPTPrompt,
-            // 	temperature: 0,
-            // 	max_tokens: 1000,
-            // 	top_p: 1.0,
-            // 	frequency_penalty: 1,
-            // 	presence_penalty: 1,
-            // 	stream: true,
-            // });
-            // const { body, status } = response;
-            const controllerRef = {};
-            const prompt = '1';
-            handelPrompt(prompt, controllerRef, handler);
-            // if (body) {
-            //     const reader = body.getReader()
-            // 			const AIComment = new NoteComment(
-            // 			new vscode.MarkdownString('1'),
-            // 			vscode.CommentMode.Preview,
-            // 			{
-            // 				name: 'Scribe AI',
-            // 				iconPath: vscode.Uri.parse('https://img.icons8.com/fluency/96/null/chatbot.png'),
-            // 			},
-            // 			thread,
-            // 			thread.comments.length ? 'canDelete' : undefined
-            // 		);
-            // 		thread.comments = [...thread.comments, AIComment];
-            //     await readStream(reader, status,AIComment,)
-            //   }
-            // const responseText = response.data.choices[0].message?.content
-            // 	? response.data.choices[0].message?.content
-            // 	: 'An error occured. Please try again...';
-            // const AIComment = new NoteComment(
-            // 	new vscode.MarkdownString(responseText.trim()),
-            // 	vscode.CommentMode.Preview,
-            // 	{
-            // 		name: 'Scribe AI',
-            // 		iconPath: vscode.Uri.parse('https://img.icons8.com/fluency/96/null/chatbot.png'),
-            // 	},
-            // 	thread,
-            // 	thread.comments.length ? 'canDelete' : undefined
-            // );
+            const response = await openai.createChatCompletion({
+                model: model === 'ChatGPT' ? 'gpt-3.5-turbo' : 'gpt-4',
+                messages: chatGPTPrompt,
+                temperature: 0,
+                max_tokens: 1000,
+                top_p: 1.0,
+                frequency_penalty: 1,
+                presence_penalty: 1,
+                stream: true,
+            }, {
+                responseType: 'stream',
+            });
+            let AIComment;
+            if (response) {
+                AIComment = new NoteComment(new vscode.MarkdownString('123'), vscode.CommentMode.Preview, {
+                    name: 'Scribe AI',
+                    iconPath: vscode.Uri.parse('https://img.icons8.com/fluency/96/null/chatbot.png'),
+                }, thread, thread.comments.length ? 'canDelete' : undefined);
+                thread.comments = [...thread.comments, AIComment];
+            }
+            response.data.on('data', (data) => {
+                const lines = data
+                    .toString()
+                    .split('\n')
+                    .filter((line) => line.trim() !== '');
+                for (const line of lines) {
+                    const message = line.replace(/^data: /, '');
+                    if (message === '[DONE]') {
+                        return; // Stream finished
+                    }
+                    try {
+                        const parsed = JSON.parse(message);
+                        const textStr = parsed &&
+                            parsed.choices &&
+                            parsed.choices[0] &&
+                            parsed.choices[0].delta.content;
+                        AIComment = new NoteComment(new vscode.MarkdownString(textStr), vscode.CommentMode.Preview, {
+                            name: 'Scribe AI',
+                            iconPath: vscode.Uri.parse('https://img.icons8.com/fluency/96/null/chatbot.png'),
+                        });
+                        thread.comments = [...thread.comments, AIComment];
+                        // thread.comments[thread.comments.length - 1].body = new vscode.MarkdownString(
+                        // 	AIComment.body + textStr
+                        // );
+                        console.log(textStr, '----str');
+                    }
+                    catch (error) {
+                        console.error('Could not JSON parse stream message', message, error);
+                    }
+                }
+            });
+            const responseText = response.data.choices[0].message?.content
+                ? response.data.choices[0].message?.content
+                : 'An error occured. Please try again...';
             // thread.comments = [...thread.comments, AIComment];
             // console.log(flatted.stringify(thread), '---thread');
             // console.log(flatted.stringify(AIComment), '----AIcomment');.
