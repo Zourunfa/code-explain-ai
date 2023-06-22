@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 .DS_Store
 npm-debug.log
 Thumbs.db
@@ -7,3 +8,10 @@ Thumbs.db
 tsconfig.lsif.json
 *.lsif
 *.db
+=======
+out
+dist
+node_modules
+.vscode-test/
+*.vsix
+>>>>>>> 0425afb6a4a6f8120818d7d984e72b417ba14574

@@ -9,14 +9,37 @@
 			"name": "Run Extension",
 			"type": "extensionHost",
 			"request": "launch",
+<<<<<<< HEAD
 			"runtimeExecutable": "${execPath}",
+=======
+>>>>>>> 0425afb6a4a6f8120818d7d984e72b417ba14574
 			"args": [
 				"--extensionDevelopmentPath=${workspaceFolder}"
 			],
 			"outFiles": [
+<<<<<<< HEAD
 				"${workspaceFolder}/out/**/*.js"
 			],
 			"preLaunchTask": "npm: watch"
+=======
+				"${workspaceFolder}/dist/**/*.js"
+			],
+			"preLaunchTask": "${defaultBuildTask}"
+		},
+		{
+			"name": "Extension Tests",
+			"type": "extensionHost",
+			"request": "launch",
+			"args": [
+				"--extensionDevelopmentPath=${workspaceFolder}",
+				"--extensionTestsPath=${workspaceFolder}/out/test/suite/index"
+			],
+			"outFiles": [
+				"${workspaceFolder}/out/**/*.js",
+				"${workspaceFolder}/dist/**/*.js"
+			],
+			"preLaunchTask": "tasks: watch-tests"
+>>>>>>> 0425afb6a4a6f8120818d7d984e72b417ba14574
 		}
 	]
 }

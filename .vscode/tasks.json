@@ -6,15 +6,48 @@
 		{
 			"type": "npm",
 			"script": "watch",
+<<<<<<< HEAD
 			"problemMatcher": "$tsc-watch",
 			"isBackground": true,
 			"presentation": {
 				"reveal": "never"
+=======
+			"problemMatcher": "$ts-webpack-watch",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never",
+				"group": "watchers"
+>>>>>>> 0425afb6a4a6f8120818d7d984e72b417ba14574
 			},
 			"group": {
 				"kind": "build",
 				"isDefault": true
 			}
+<<<<<<< HEAD
 		}
 	]
 }
+=======
+		},
+		{
+			"type": "npm",
+			"script": "watch-tests",
+			"problemMatcher": "$tsc-watch",
+			"isBackground": true,
+			"presentation": {
+				"reveal": "never",
+				"group": "watchers"
+			},
+			"group": "build"
+		},
+		{
+			"label": "tasks: watch-tests",
+			"dependsOn": [
+				"npm: watch",
+				"npm: watch-tests"
+			],
+			"problemMatcher": []
+		}
+	]
+}
+>>>>>>> 0425afb6a4a6f8120818d7d984e72b417ba14574
